@@ -1,0 +1,4 @@
+/target
+/Cargo.lock
+/runicode.h
+/test_c/test_c
