@@ -31,7 +31,10 @@ pub extern "C" fn ustr_new(chars: *const u8, lenb: usize) -> Ustr {
 ///   the passed pointer `chars` must still be freed by caller;
 /// * if the [`Ustr`] was created with another method
 ///   (e.g. [`ustr_cat`]), then it will be entirely freed.
-pub extern "C" fn ustr_free(_: Ustr) {
+pub extern "C" fn ustr_free(ustr: Ustr) {
+    if ustr.own {
+        std::mem::drop(ustr.to_string())
+    }
 }
 
 #[no_mangle]
@@ -93,6 +96,12 @@ impl Ustr {
         unsafe {
             let s = std::slice::from_raw_parts(self.chars, self.lenb);
             std::str::from_utf8_unchecked(s)
+        }
+    }
+
+    fn to_string(self) -> String {
+        unsafe {
+            String::from_raw_parts(self.chars as *mut u8, self.lenb, self.lenb)
         }
     }
 
