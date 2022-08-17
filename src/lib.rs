@@ -2,9 +2,9 @@
 #[repr(C)]
 /// A type representing a sage Unicode string
 pub struct Ustr {
-    // pointer to the characters
-    chars: *const u8,
-    // length in bytes
+    // pointer to the characters (must contain a terminal 0)
+    chars: *mut u8,
+    // length in bytes (not counting the terminal 0)
     lenb: usize,
     // whether this Ustr owns its data
     own: bool,
@@ -19,7 +19,7 @@ pub struct Ustr {
 ///   regardless of `lenb`.
 /// * the data pointed to by `chars` is expected to live
 ///   as long as the returned [`Ustr`].
-pub extern "C" fn ustr_new(chars: *const u8, lenb: usize) -> Ustr {
+pub extern "C" fn ustr_new(chars: *mut u8, lenb: usize) -> Ustr {
     Ustr::new(chars, lenb)
 }
 
@@ -38,18 +38,9 @@ pub extern "C" fn ustr_free(ustr: Ustr) {
 }
 
 #[no_mangle]
-/// Convert to a C string
-///
-/// IMPORTANT:
-/// freeing the given data becomes the responsibility of the caller.
-pub extern "C" fn ustr_to_c_string(ustr: Ustr) -> *mut u8 {
-    let txt = ustr.as_str();
-    let mut v = Vec::with_capacity(txt.len()+1);
-    v.extend_from_slice(txt.as_bytes());
-    v.push(0);
-    let ret = &mut v[0] as *mut u8;
-    std::mem::forget(v);
-    ret
+/// Return the char* of this string (useful for printing in C)
+pub extern "C" fn ustr_chars(ustr: &Ustr) -> *mut u8 {
+    ustr.chars
 }
 
 /// Return the length in bytes of this string
@@ -67,29 +58,44 @@ pub extern "C" fn ustr_lenc(ustr: &Ustr) -> usize {
 /// Concatenate two Ustr into a new one.
 #[no_mangle]
 pub extern "C" fn ustr_cat(ustr1: &Ustr, ustr2: &Ustr) -> Ustr {
-    let mut cat = String::with_capacity(ustr1.len() + ustr2.len());
-    cat.push_str(ustr1.as_str());
-    cat.push_str(ustr2.as_str());
-    Ustr::from_string(cat)
+    ustr1.cat(ustr2)
 }
 
 impl Ustr {
-    fn new(chars: *const u8, lenb: usize) -> Self {
+    fn new(chars: *mut u8, lenb: usize) -> Self {
         let s = unsafe { std::slice::from_raw_parts(chars, lenb) };
         let own = false;
         if let Ok(_) = std::str::from_utf8(s) {
             Ustr { chars, lenb, own }
         } else {
-            Ustr { chars: &EMPTY as *const u8, lenb: 0, own }
+            let chars = &EMPTY as *const u8;
+            let chars: *mut u8 = unsafe { std::mem::transmute(chars) };
+            Ustr { chars, lenb: 0, own }
         }
     }
 
-    fn from_string(s: String) -> Self {
-        let chars = &s.as_bytes()[0] as *const u8;
+    #[allow(dead_code)]
+    fn from_string(mut s: String) -> Self {
+        let v = unsafe { s.as_mut_vec() };
+        let chars = &mut v[0] as *mut u8;
         let lenb = s.len();
         let own = true;
         std::mem::forget(s);
         Ustr { chars, lenb, own }
+    }
+
+    fn cat(&self, other: &Ustr) -> Self {
+        let mut v = Vec::with_capacity(self.lenb + other.lenb + 1);
+        v.extend_from_slice(self.as_str().as_bytes());
+        v.extend_from_slice(other.as_str().as_bytes());
+        v.push(0);
+        let ret = Ustr {
+            chars: &mut v[0] as *mut u8,
+            lenb: v.len() - 1,
+            own: true,
+        };
+        std::mem::forget(v);
+        ret
     }
 
     fn as_str(&self) -> &str {

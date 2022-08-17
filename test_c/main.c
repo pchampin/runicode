@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include "../runicode.h"
 
@@ -19,8 +18,7 @@ int main(int argc, char** argv) {
             u = ustr_cat(&u, &v);
             ustr_free(v);
         }
-        char* t = ustr_to_c_string(u);
-        printf("\ncat: %s", t);
-        free(t);
+        printf("\nconcatenation: %s", ustr_chars(&u));
+        ustr_free(u);
     }
 }
