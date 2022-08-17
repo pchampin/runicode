@@ -19,6 +19,13 @@ int main(int argc, char** argv) {
             ustr_free(v);
         }
         printf("\nconcatenation: %s", ustr_chars(&u));
+
+        ustr_make_ascii_uppercase(&u);
+        printf("\nupper-cased: %s", ustr_chars(&u));
+
+        ustr_make_ascii_lowercase(&u);
+        printf("\nlower-cased: %s", ustr_chars(&u));
+
         ustr_free(u);
     }
 }

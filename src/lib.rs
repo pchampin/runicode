@@ -1,4 +1,3 @@
-
 #[repr(C)]
 /// A type representing a sage Unicode string
 pub struct Ustr {
@@ -61,6 +60,18 @@ pub extern "C" fn ustr_cat(ustr1: &Ustr, ustr2: &Ustr) -> Ustr {
     ustr1.cat(ustr2)
 }
 
+/// Convert all ASCII characters in ustr to lower-case
+#[no_mangle]
+pub extern "C" fn ustr_make_ascii_lowercase(ustr: &mut Ustr) {
+    ustr.as_str_mut().make_ascii_lowercase();
+}
+
+/// Convert all ASCII characters in ustr to upper-case
+#[no_mangle]
+pub extern "C" fn ustr_make_ascii_uppercase(ustr: &mut Ustr) {
+    ustr.as_str_mut().make_ascii_uppercase();
+}
+
 impl Ustr {
     fn new(chars: *mut u8, lenb: usize) -> Self {
         let s = unsafe { std::slice::from_raw_parts(chars, lenb) };
@@ -102,6 +113,13 @@ impl Ustr {
         unsafe {
             let s = std::slice::from_raw_parts(self.chars, self.lenb);
             std::str::from_utf8_unchecked(s)
+        }
+    }
+
+    fn as_str_mut(&self) -> &mut str {
+        unsafe {
+            let s = std::slice::from_raw_parts_mut(self.chars, self.lenb);
+            std::str::from_utf8_unchecked_mut(s)
         }
     }
 
